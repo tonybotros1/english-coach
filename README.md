@@ -11,7 +11,7 @@ An English learning app: an adaptive placement test that gives your CEFR level (
 
 1. **Foundations (done):** server, database, sign-in with an emailed code, the app's five tabs, and the voice check that proves recording and scoring work on both phones.
 2. **Placement test and results (done):** a 30-minute adaptive test in six parts with a CEFR level for each skill, exam equivalents, and every mistake explained.
-3. Plan builder, Today screen and review cards.
+3. **Plan, Today and review cards (done):** a 12-week plan from your results, today's tasks on the Today screen, and FSRS review cards made from your mistakes.
 4. Daily activities for all six skills.
 5. Morning email, progress screen and checkpoint tests.
 6. Web app on the same server.
@@ -66,6 +66,14 @@ Expo Go installs itself on the emulator the first time. If the app ever shows ol
 - **Pausing:** every answer is saved, so a test can be continued on any device for 7 days.
 
 `npm test` in `server` checks the bank's format, lengths and balance, the staircase logic, and a full test run against a practice database.
+
+## The plan and review cards
+
+- **Setup:** four choices, which are goal, target level, minutes a day and days a week. The estimate uses Cambridge English's guideline of about 200 guided study hours per CEFR level.
+- **Balance:** half of the lesson time follows your results, so the weakest skills get the most. The other half keeps Paul Nation's four strands equal (language study, input, output, fluency), so no strand is squeezed out.
+- **Rhythm:** every study day starts with review cards. The last study day of each week is a review day, and weeks 4, 8 and 12 end with a checkpoint test.
+- **Review cards:** every placement mistake and writing correction becomes a card. Cards are scheduled with FSRS, the open-source algorithm Anki uses, aiming for 90% recall. You recall the answer, reveal it, then rate Again, Hard, Good or Easy. New cards arrive a few a day, with skills mixed, and forgotten cards come back in the same session.
+- **Lessons** for each skill arrive in Phase 4. Until then, Today shows them as previews.
 
 ## Design
 

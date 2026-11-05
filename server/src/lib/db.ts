@@ -38,6 +38,10 @@ export async function ensureIndexes(db: Db): Promise<void> {
     db.collection('login_codes').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
     db.collection('login_codes').createIndex({ email: 1, createdAt: -1 }),
     db.collection('placement_tests').createIndex({ userId: 1, status: 1, startedAt: -1 }),
+    db.collection('plans').createIndex({ userId: 1, status: 1 }),
+    db.collection('cards').createIndex({ userId: 1, key: 1 }, { unique: true }),
+    db.collection('cards').createIndex({ userId: 1, 'fsrs.state': 1, 'fsrs.due': 1 }),
+    db.collection('review_logs').createIndex({ userId: 1, date: 1 }),
   ]);
 }
 

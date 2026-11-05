@@ -5,6 +5,7 @@
 import { ObjectId, type Db, type WithId } from 'mongodb';
 
 import type { UserDoc } from '../auth';
+import { importPlacementCards } from '../cards';
 import { assessSpontaneous, isSpeechConfigured, type Assessment } from '../azureSpeech';
 import { HttpError } from '../errors';
 import { isGeminiConfigured } from '../gemini';
@@ -372,11 +373,21 @@ async function recordCompletion(db: Db, userId: ObjectId, t: WithId<TestDoc>) {
   ];
   const summary: PlacementSummary = { testId: t._id.toHexString(), completedAt: t.completedAt!, overall: t.results!.overall, skills: t.results!.skills };
   await users(db).updateOne({ _id: userId }, { $set: { placement: summary }, $addToSet: { placementSeen: { $each: seen } } });
+  // Every mistake becomes a review card.
+  await importPlacementCards(db, userId, t._id, t.completedAt ?? new Date());
 }
 
 export async function latestSummary(db: Db, userId: ObjectId): Promise<PlacementSummary | null> {
   const u = await users(db).findOne({ _id: userId }, { projection: { placement: 1 } });
-  return u?.placement ?? null;
+  const p = u?.placement;
+  if (!p) return null;
+  // Labels are recomputed from scores, so results saved under older labelling rules display correctly.
+  const relabel = (r: SkillResult) => ({ ...r, label: levelLabel(r.score) });
+  return {
+    ...p,
+    overall: { score: p.overall.score, label: levelLabel(p.overall.score) },
+    skills: Object.fromEntries(Object.entries(p.skills).map(([k, v]) => [k, relabel(v)])) as Record<Section, SkillResult>,
+  };
 }
 
 /** The full results page for one of the learner's completed tests. */
@@ -388,6 +399,8 @@ export async function resultsOf(db: Db, user: WithId<UserDoc>, testId: string) {
     testId,
     completedAt: t.completedAt,
     ...t.results,
+    overall: { score: t.results.overall.score, label: levelLabel(t.results.overall.score) },
+    skills: Object.fromEntries(Object.entries(t.results.skills).map(([k, v]) => [k, { ...v, label: levelLabel(v.score) }])) as Record<Section, SkillResult>,
     writing: { prompt: t.writing!.prompt, text: t.writing!.text, feedback: t.writing!.feedback },
     speaking: {
       feedback: t.speaking!.feedback,

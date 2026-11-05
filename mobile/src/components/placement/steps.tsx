@@ -45,14 +45,14 @@ export function SectionIntro({ section, index, count, onStart }: { section: Sect
 }
 
 /** Shows a sentence with its ___ gap, filled in with the chosen option once one is picked. */
-function GapSentence({ prompt, filled }: { prompt: string; filled: string | null }) {
+export function GapSentence({ prompt, filled, filledColor }: { prompt: string; filled: string | null; filledColor?: string }) {
   const theme = useTheme();
   const [before, after] = prompt.includes('___') ? prompt.split('___') : [prompt, null];
   return (
     <ThemedText type="subtitle" style={{ fontWeight: SEMIBOLD, lineHeight: 32 }}>
       {before}
       {after !== null && (
-        <ThemedText type="subtitle" style={{ color: filled ? theme.text : theme.textTertiary, textDecorationLine: 'underline', lineHeight: 32 }}>
+        <ThemedText type="subtitle" style={{ color: filled ? (filledColor ?? theme.text) : theme.textTertiary, textDecorationLine: 'underline', lineHeight: 32 }}>
           {filled ?? '    '}
         </ThemedText>
       )}

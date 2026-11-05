@@ -36,6 +36,8 @@ function RootNavigator() {
         {/* No swipe-back during the test, so a stray gesture never interrupts an answer. Leaving is the close button. */}
         <Stack.Screen name="placement/test" options={{ gestureEnabled: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="placement/results/[id]" options={{ ...header, title: 'Your results' }} />
+        <Stack.Screen name="plan-setup" options={{ ...header, title: '', presentation: 'modal' }} />
+        <Stack.Screen name="review" options={{ animation: 'slide_from_bottom' }} />
       </Stack.Protected>
       <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="sign-in" />
