@@ -44,16 +44,21 @@ export function SectionIntro({ section, index, count, onStart }: { section: Sect
   );
 }
 
-/** Shows a sentence with its ___ gap, filled in with the chosen option once one is picked. */
-export function GapSentence({ prompt, filled, filledColor }: { prompt: string; filled: string | null; filledColor?: string }) {
+/**
+ * Shows a sentence with its ___ gap, filled in with the chosen option once one is picked. `reserve` (the
+ * longest option) keeps the gap the same width whatever is chosen, so the buttons below never jump.
+ */
+export function GapSentence({ prompt, filled, filledColor, reserve }: { prompt: string; filled: string | null; filledColor?: string; reserve?: string }) {
   const theme = useTheme();
   const [before, after] = prompt.includes('___') ? prompt.split('___') : [prompt, null];
+  const width = Math.max(4, reserve?.length ?? 4);
+  const pad = (t: string) => t + ' '.repeat(Math.max(0, width - t.length));
   return (
     <ThemedText type="subtitle" style={{ fontWeight: SEMIBOLD, lineHeight: 32 }}>
       {before}
       {after !== null && (
         <ThemedText type="subtitle" style={{ color: filled ? (filledColor ?? theme.text) : theme.textTertiary, textDecorationLine: 'underline', lineHeight: 32 }}>
-          {filled ?? '    '}
+          {reserve ? pad(filled ?? '') : (filled ?? '    ')}
         </ThemedText>
       )}
       {after}
@@ -83,7 +88,11 @@ export function McqStep({ item, section, questionNumber, busy, onAnswer }: { ite
 
       <View style={{ gap: Spacing.two }}>
         <ThemedText type="eyebrow">{`${SECTION_INFO[section].name} · Question ${questionNumber}`}</ThemedText>
-        {isGap ? <GapSentence prompt={item.prompt} filled={selected === null ? null : item.options[selected]} /> : <ThemedText type="subtitle">{item.prompt}</ThemedText>}
+        {isGap ? (
+          <GapSentence prompt={item.prompt} filled={selected === null ? null : item.options[selected]} reserve={item.options.reduce((a, b) => (b.length > a.length ? b : a), '')} />
+        ) : (
+          <ThemedText type="subtitle">{item.prompt}</ThemedText>
+        )}
       </View>
 
       <View style={{ gap: Spacing.two }} accessibilityRole="radiogroup">

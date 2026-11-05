@@ -10,6 +10,7 @@ export type Week = { n: number; focus: string; days: Day[] };
 export type Settings = { goal: Goal; target: number; minutes: 15 | 30 | 45 | 60; days: number };
 
 export type PlanView = {
+  done: string[];
   createdAt: string;
   settings: Settings;
   goalName: string;
@@ -47,6 +48,7 @@ export type TodayView = {
     dayType: Day['type'] | null;
     focus: string | null;
     tasks: Task[];
+    done: string[];
     target: number;
     minutes: number;
   } | null;

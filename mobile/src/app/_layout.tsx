@@ -38,6 +38,7 @@ function RootNavigator() {
         <Stack.Screen name="placement/results/[id]" options={{ ...header, title: 'Your results' }} />
         <Stack.Screen name="plan-setup" options={{ ...header, title: '', presentation: 'modal' }} />
         <Stack.Screen name="review" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="lesson/[taskId]" options={{ animation: 'slide_from_bottom' }} />
       </Stack.Protected>
       <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="sign-in" />

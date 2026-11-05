@@ -6,6 +6,7 @@ import type { UserDoc } from '../auth';
 import { cardCounts, importPlacementCards } from '../cards';
 import { addDays, daysBetween, localDate } from '../dates';
 import { HttpError } from '../errors';
+import { doneTaskIds } from '../lessons/service';
 import { currentStep, latestSummary, type PlacementSummary } from '../placement/service';
 import { GOALS, SKILLS, type Goal } from './content';
 import { MINUTE_CHOICES, PLAN_WEEKS, buildPlan, estimate, newCardsPerDay, strandMinutes, type Levels, type Plan, type Settings } from './engine';
@@ -68,9 +69,10 @@ export function locate(doc: PlanDoc, today: string) {
   return { status: 'active' as const, weekIndex, dayIndex: offset % 7, week, day: week.days[offset % 7] };
 }
 
-export function planView(doc: PlanDoc, today: string) {
+export function planView(doc: PlanDoc, today: string, done: string[] = []) {
   const where = locate(doc, today);
   return {
+    done,
     createdAt: doc.createdAt,
     settings: doc.settings,
     goalName: GOALS[doc.settings.goal],
@@ -99,6 +101,7 @@ export async function todaySummary(db: Db, user: WithId<UserDoc>, now = new Date
   const minutes = doc?.settings.minutes ?? 30;
   const cards = await cardCounts(db, user, newCardsPerDay(minutes), now);
   const where = doc ? locate(doc, today) : null;
+  const done = doc ? await doneTaskIds(db, user._id, doc.createdAt) : [];
   return {
     date: today,
     placement: { latest: placement, active },
@@ -111,6 +114,7 @@ export async function todaySummary(db: Db, user: WithId<UserDoc>, now = new Date
           dayType: where.day?.type ?? null,
           focus: where.week?.focus ?? null,
           tasks: where.day?.tasks ?? [],
+          done: (where.day?.tasks ?? []).filter((t) => done.includes(t.id)).map((t) => t.id),
           target: doc.settings.target,
           minutes: doc.settings.minutes,
         }

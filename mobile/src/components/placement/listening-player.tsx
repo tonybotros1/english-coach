@@ -16,7 +16,7 @@ let voicesPromise: Promise<VoicePair> | null = null;
  * Picks two different English voices for speakers A and B. If the phone has only one voice,
  * speaker B gets a lower pitch so the two people still sound different.
  */
-function loadVoices(): Promise<VoicePair> {
+export function loadVoices(): Promise<VoicePair> {
   voicesPromise ??= Speech.getAvailableVoicesAsync()
     .then((all) => {
       const english = all.filter((v) => v.language?.toLowerCase().startsWith('en'));

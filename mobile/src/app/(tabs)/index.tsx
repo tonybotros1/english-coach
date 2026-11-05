@@ -2,7 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
-import { TaskRow } from '@/components/plan/task-row';
+import { LESSON_KINDS, TaskRow } from '@/components/plan/task-row';
 import { ThemedText } from '@/components/themed-text';
 import { Button, Card, Icon, ListRow, Notice, Pill, Screen, Section, type IconName } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
@@ -136,7 +136,7 @@ export default function TodayScreen() {
           footer={
             plan.dayType === 'rest'
               ? undefined
-              : 'Lessons for each skill arrive in the next update. Until then, review cards are ready to use.'
+              : 'Start with your review cards, then do the lessons in any order. Weekly reviews and checkpoints arrive in the next update.'
           }>
           {plan.dayType === 'rest' || plan.tasks.length === 0 ? (
             <View style={styles.rest}>
@@ -146,14 +146,20 @@ export default function TodayScreen() {
               </ThemedText>
             </View>
           ) : (
-            plan.tasks.map((t, i) => (
-              <TaskRow
-                key={t.id}
-                task={t}
-                last={i === plan.tasks.length - 1}
-                note={t.kind === 'review' ? (toReview ? undefined : 'Done') : 'Next update'}
-              />
-            ))
+            plan.tasks.map((t, i) => {
+              const lesson = LESSON_KINDS.includes(t.kind);
+              const done = t.kind === 'review' ? cards?.reviewedToday ? toReview === 0 : false : plan.done.includes(t.id);
+              return (
+                <TaskRow
+                  key={t.id}
+                  task={t}
+                  last={i === plan.tasks.length - 1}
+                  done={done}
+                  note={lesson || t.kind === 'review' ? (done ? 'Done' : undefined) : 'Next update'}
+                  onPress={lesson ? () => router.push({ pathname: '/lesson/[taskId]', params: { taskId: t.id } }) : t.kind === 'review' && toReview ? () => router.push('/review') : undefined}
+                />
+              );
+            })
           )}
         </Section>
       )}

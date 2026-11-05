@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ComingSoon } from '@/components/coming-soon';
-import { STRAND_INFO, TaskRow } from '@/components/plan/task-row';
+import { LESSON_KINDS, STRAND_INFO, TaskRow } from '@/components/plan/task-row';
 import { ThemedText } from '@/components/themed-text';
 import { Button, Card, Notice, Pill, Screen, Section } from '@/components/ui';
 import { Radius, SEMIBOLD, Spacing } from '@/constants/theme';
@@ -13,6 +13,11 @@ import { LEVELS, SECTION_INFO } from '@/lib/placement';
 import { planApi, type Day, type PlanView, type SetupDefaults, type Strand } from '@/lib/plan';
 import { useSession } from '@/lib/session';
 
+const addDays = (date: string, n: number) => {
+  const d = new Date(`${date}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
 const weekday = (date: string) => new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
 const DAY_LABEL: Record<Day['type'], string> = { study: 'Study day', review: 'Review day', checkpoint: 'Checkpoint', rest: 'Rest day' };
 
@@ -157,7 +162,20 @@ export default function PlanScreen() {
         return (
           <Section key={d.date} title={`${weekday(d.date)}${isToday ? ' · Today' : ''} · ${DAY_LABEL[d.type]}`}>
             {d.tasks.length ? (
-              d.tasks.map((t, i) => <TaskRow key={t.id} task={t} last={i === d.tasks.length - 1} />)
+              d.tasks.map((t, i) => {
+                const lesson = LESSON_KINDS.includes(t.kind);
+                // Lessons open on their day (or the day before); past ones can be caught up.
+                const open = lesson && d.date <= addDays(p.today.date, 1);
+                return (
+                  <TaskRow
+                    key={t.id}
+                    task={t}
+                    last={i === d.tasks.length - 1}
+                    done={p.done.includes(t.id)}
+                    onPress={open ? () => router.push({ pathname: '/lesson/[taskId]', params: { taskId: t.id } }) : undefined}
+                  />
+                );
+              })
             ) : (
               <View style={styles.rest}>
                 <ThemedText type="small" themeColor="textSecondary">

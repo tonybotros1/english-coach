@@ -12,7 +12,7 @@ An English learning app: an adaptive placement test that gives your CEFR level (
 1. **Foundations (done):** server, database, sign-in with an emailed code, the app's five tabs, and the voice check that proves recording and scoring work on both phones.
 2. **Placement test and results (done):** a 30-minute adaptive test in six parts with a CEFR level for each skill, exam equivalents, and every mistake explained.
 3. **Plan, Today and review cards (done):** a 12-week plan from your results, today's tasks on the Today screen, and FSRS review cards made from your mistakes.
-4. Daily activities for all six skills.
+4. **Daily lessons (done):** Gemini writes a lesson for each task in your plan, for all six skills, saved once and checked before use.
 5. Morning email, progress screen and checkpoint tests.
 6. Web app on the same server.
 
@@ -73,7 +73,23 @@ Expo Go installs itself on the emulator the first time. If the app ever shows ol
 - **Balance:** half of the lesson time follows your results, so the weakest skills get the most. The other half keeps Paul Nation's four strands equal (language study, input, output, fluency), so no strand is squeezed out.
 - **Rhythm:** every study day starts with review cards. The last study day of each week is a review day, and weeks 4, 8 and 12 end with a checkpoint test.
 - **Review cards:** every placement mistake and writing correction becomes a card. Cards are scheduled with FSRS, the open-source algorithm Anki uses, aiming for 90% recall. You recall the answer, reveal it, then rate Again, Hard, Good or Easy. New cards arrive a few a day, with skills mixed, and forgotten cards come back in the same session.
-- **Lessons** for each skill arrive in Phase 4. Until then, Today shows them as previews.
+
+## Daily lessons
+
+Each lesson task in the plan opens a lesson written by Gemini for your level, goal and that day's topic. The lesson is saved the first time, so opening it again is instant and costs nothing. Before saving, the server checks it: one gap per practice sentence, four different options, reading and listening lengths for the level, and dictation sentences that appear word for word in the recording. If a check fails, Gemini gets one retry with the problems listed.
+
+| Skill | What you do |
+| --- | --- |
+| Grammar | Short explanation and examples, then 8 practice questions with feedback straight away |
+| Vocabulary | 6 to 8 new words with meaning, example and collocation, then 8 practice questions |
+| Reading | A text at your level with a glossary, then 5 questions |
+| Listening | A recording with two voices and 3 questions, then dictation of 3 sentences, checked word by word |
+| Writing | A task with useful phrases; AI feedback, corrections and a stronger version of your text |
+| Speaking | Shadowing 5 sentences scored for pronunciation, then a free answer with AI feedback |
+
+Mistakes, new words, dictation errors and weak pronunciation all become review cards. Finishing a lesson ticks it off on Today.
+
+Lessons need `GEMINI_API_KEY`. Speaking also needs `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION`. Without them, the app explains which setting is missing.
 
 ## Design
 

@@ -28,7 +28,7 @@ export type CardDoc = {
   /** Unique per learner, so the same mistake never makes two cards. */
   key: string;
   skill: string;
-  source: { type: 'placement' | 'writing'; testId: string };
+  source: { type: 'placement' | 'writing'; testId: string } | { type: 'lesson'; lessonId: string };
   front: CardFront;
   back: CardBack;
   fsrs: FsrsCard;
@@ -103,6 +103,36 @@ export async function importPlacementCards(db: Db, userId: ObjectId, testId: Obj
   if (!docs.length) return 0;
   const r = await cards(db).bulkWrite(
     docs.map((d) => ({ updateOne: { filter: { userId, key: d.key }, update: { $setOnInsert: d }, upsert: true } })),
+    { ordered: false },
+  );
+  return r.upsertedCount;
+}
+
+export type NewCard = { key: string; skill: string; lessonId: string; front: CardFront; back: CardBack };
+
+/** Adds review cards from a lesson. Cards whose key already exists (the same word or mistake) are kept as they are. */
+export async function addLessonCards(db: Db, userId: ObjectId, list: NewCard[], now = new Date()): Promise<number> {
+  if (!list.length) return 0;
+  const r = await cards(db).bulkWrite(
+    list.map((c) => ({
+      updateOne: {
+        filter: { userId, key: c.key },
+        update: {
+          $setOnInsert: {
+            userId,
+            key: c.key,
+            skill: c.skill,
+            source: { type: 'lesson' as const, lessonId: c.lessonId },
+            front: c.front,
+            back: c.back,
+            fsrs: createEmptyCard(now),
+            introducedOn: null,
+            createdAt: now,
+          },
+        },
+        upsert: true,
+      },
+    })),
     { ordered: false },
   );
   return r.upsertedCount;

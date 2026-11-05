@@ -42,6 +42,9 @@ export async function ensureIndexes(db: Db): Promise<void> {
     db.collection('cards').createIndex({ userId: 1, key: 1 }, { unique: true }),
     db.collection('cards').createIndex({ userId: 1, 'fsrs.state': 1, 'fsrs.due': 1 }),
     db.collection('review_logs').createIndex({ userId: 1, date: 1 }),
+    // One lesson per plan task: the unique index is also the lock that stops a lesson being written twice.
+    db.collection('lessons').createIndex({ userId: 1, taskId: 1 }, { unique: true }),
+    db.collection('lessons').createIndex({ userId: 1, planCreatedAt: 1, status: 1 }),
   ]);
 }
 
