@@ -37,6 +37,7 @@ export async function ensureIndexes(db: Db): Promise<void> {
     // MongoDB removes expired sign-in codes automatically.
     db.collection('login_codes').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
     db.collection('login_codes').createIndex({ email: 1, createdAt: -1 }),
+    db.collection('placement_tests').createIndex({ userId: 1, status: 1, startedAt: -1 }),
   ]);
 }
 

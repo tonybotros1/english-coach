@@ -18,23 +18,24 @@ function RootNavigator() {
 
   if (status === 'loading') return null;
   const signedIn = status === 'signedIn';
+  const header = {
+    headerShown: true,
+    headerTintColor: Colors[scheme].text,
+    headerStyle: { backgroundColor: Colors[scheme].background },
+    headerShadowVisible: false,
+    headerTitleStyle: { fontWeight: '600' as const },
+    headerBackButtonDisplayMode: 'minimal' as const,
+  };
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors[scheme].background } }}>
       <Stack.Protected guard={signedIn}>
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen
-          name="voice-check"
-          options={{
-            headerShown: true,
-            title: 'Voice check',
-            presentation: 'modal',
-            headerTintColor: Colors[scheme].text,
-            headerStyle: { backgroundColor: Colors[scheme].background },
-            headerShadowVisible: false,
-            headerTitleStyle: { fontWeight: '600' },
-          }}
-        />
+        <Stack.Screen name="voice-check" options={{ ...header, title: 'Voice check', presentation: 'modal' }} />
+        <Stack.Screen name="placement/index" options={{ ...header, title: '' }} />
+        {/* No swipe-back during the test, so a stray gesture never interrupts an answer. Leaving is the close button. */}
+        <Stack.Screen name="placement/test" options={{ gestureEnabled: false, animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="placement/results/[id]" options={{ ...header, title: 'Your results' }} />
       </Stack.Protected>
       <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="sign-in" />

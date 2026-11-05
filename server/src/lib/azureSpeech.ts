@@ -18,37 +18,52 @@ function endpoint(): string {
   return `${base}?language=en-US&format=detailed`;
 }
 
-/** Scores how a learner read `referenceText` aloud. `wav` must be 16 kHz mono PCM WAV, 30 seconds or less. */
-export async function assessPronunciation(wav: Buffer, referenceText: string): Promise<Assessment> {
+/** Sends 16 kHz mono PCM WAV (30 seconds or less) to Azure's short-audio API, with or without pronunciation scoring. */
+async function recognize(wav: Buffer, assessment: Record<string, string> | null): Promise<unknown> {
   const key = process.env.AZURE_SPEECH_KEY;
   if (!key) throw new ConfigError('AZURE_SPEECH_KEY');
   if (!process.env.AZURE_SPEECH_REGION && !process.env.AZURE_SPEECH_ENDPOINT) throw new ConfigError('AZURE_SPEECH_REGION');
-
-  const config = {
-    ReferenceText: referenceText,
-    GradingSystem: 'HundredMark',
-    Granularity: 'Word',
-    Dimension: 'Comprehensive',
-    EnableMiscue: 'True',
-    EnableProsodyAssessment: 'True',
+  const headers: Record<string, string> = {
+    'Ocp-Apim-Subscription-Key': key,
+    'Content-Type': 'audio/wav; codecs=audio/pcm; samplerate=16000',
+    Accept: 'application/json',
   };
-  const res = await fetch(endpoint(), {
-    method: 'POST',
-    headers: {
-      'Ocp-Apim-Subscription-Key': key,
-      'Content-Type': 'audio/wav; codecs=audio/pcm; samplerate=16000',
-      'Pronunciation-Assessment': Buffer.from(JSON.stringify(config), 'utf8').toString('base64'),
-      Accept: 'application/json',
-    },
-    body: new Uint8Array(wav),
-  });
+  if (assessment) headers['Pronunciation-Assessment'] = Buffer.from(JSON.stringify(assessment), 'utf8').toString('base64');
+  const res = await fetch(endpoint(), { method: 'POST', headers, body: new Uint8Array(wav) });
   if (res.status === 401 || res.status === 403) throw new HttpError(502, 'The speech service rejected the server key. Check AZURE_SPEECH_KEY and AZURE_SPEECH_REGION.', 'speech_auth');
   if (res.status === 429) throw new HttpError(429, 'The free speech allowance is used up for now. Try again later.', 'speech_quota');
   if (!res.ok) {
     console.error('Azure speech error', res.status, (await res.text()).slice(0, 400));
     throw new HttpError(502, 'The speech service could not score this recording. Try again.', 'speech_failed');
   }
-  return normalizeAssessment(await res.json());
+  return res.json();
+}
+
+const assessmentConfig = (referenceText: string) => ({
+  ReferenceText: referenceText,
+  GradingSystem: 'HundredMark',
+  Granularity: 'Word',
+  Dimension: 'Comprehensive',
+  EnableMiscue: 'True',
+  EnableProsodyAssessment: 'True',
+});
+
+/** Scores how a learner read `referenceText` aloud. `wav` must be 16 kHz mono PCM WAV, 30 seconds or less. */
+export async function assessPronunciation(wav: Buffer, referenceText: string): Promise<Assessment> {
+  return normalizeAssessment(await recognize(wav, assessmentConfig(referenceText)));
+}
+
+/**
+ * Scores free speech, where there is no script to compare with. Azure documents unscripted assessment
+ * only for its SDK, so this uses two calls: first transcribe what was said, then score the pronunciation
+ * against that transcript. Completeness is meaningless here and is dropped.
+ */
+export async function assessSpontaneous(wav: Buffer): Promise<Assessment> {
+  const heard = normalizeAssessment(await recognize(wav, null));
+  const transcript = heard.recognized.trim();
+  if (heard.status !== 'Success' || !transcript) return { ...heard, recognized: transcript };
+  const scored = normalizeAssessment(await recognize(wav, { ...assessmentConfig(transcript), EnableMiscue: 'False' }));
+  return { ...scored, recognized: transcript, scores: { ...scored.scores, completeness: null } };
 }
 
 type Raw = Record<string, unknown>;

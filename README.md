@@ -10,7 +10,7 @@ An English learning app: an adaptive placement test that gives your CEFR level (
 ## Build phases
 
 1. **Foundations (done):** server, database, sign-in with an emailed code, the app's five tabs, and the voice check that proves recording and scoring work on both phones.
-2. Placement test and results.
+2. **Placement test and results (done):** a 30-minute adaptive test in six parts with a CEFR level for each skill, exam equivalents, and every mistake explained.
 3. Plan builder, Today screen and review cards.
 4. Daily activities for all six skills.
 5. Morning email, progress screen and checkpoint tests.
@@ -57,6 +57,16 @@ npx expo start --android
 
 Expo Go installs itself on the emulator the first time. If the app ever shows old code, press `r` in the Expo terminal to reload.
 
+## The placement test
+
+- **Six parts:** grammar, vocabulary, reading, listening, writing and speaking.
+- **Adaptive:** the four multiple-choice parts work like the Oxford Placement Test. Each starts at B1, moves up a level after a pass and down after a fail, and stops at the highest level passed.
+- **Question bank:** 270 questions on the server, CEFR-tagged, in `server/src/lib/placement/bank/`. Every question was checked by a second reviewer. Retakes get questions you haven't seen, and the answers never reach the phone.
+- **Writing and speaking:** Gemini grades both against the CEFR descriptors. Azure scores pronunciation and fluency of the spoken answers. Without those keys, the level is estimated from the other skills and the results page says so.
+- **Pausing:** every answer is saved, so a test can be continued on any device for 7 days.
+
+`npm test` in `server` checks the bank's format, lengths and balance, the staircase logic, and a full test run against a practice database.
+
 ## Design
 
 Clean and neutral: grey is the main colour (backgrounds, cards, secondary buttons) and black is the accent (text, primary buttons, selection). Dark mode inverts it. All colours, spacing and radii live in `mobile/src/constants/theme.ts`, and the shared building blocks (screen, card, button, list row, notice, pill) are in `mobile/src/components/ui.tsx`.
@@ -86,7 +96,7 @@ The free tier gives 5 audio hours a month. It stops at the limit and never charg
 
 **Resend.** Create an API key and set `RESEND_API_KEY`. Until you verify a domain, Resend only delivers to the address you signed up with. That is enough while you are the only user.
 
-**Gemini.** Create a free key at https://aistudio.google.com/apikey and set `GEMINI_API_KEY`. It is used from Phase 2.
+**Gemini.** Create a free key at https://aistudio.google.com/apikey and set `GEMINI_API_KEY`. It grades the writing and speaking parts. `GEMINI_MODEL` and `GEMINI_FALLBACK_MODEL` default to the newest Flash and Flash-Lite models, and the lighter one is used when the free quota runs out.
 
 ## Deploy the server to Vercel
 
