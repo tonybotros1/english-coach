@@ -5,11 +5,11 @@ An English learning app: an adaptive placement test that gives your CEFR level (
 | Folder | What it is |
 | --- | --- |
 | `mobile/` | The phone app, built with Expo (React Native) for iPhone and Android. |
-| `server/` | The server, built with Next.js and deployed to Vercel. It holds every secret, talks to MongoDB, Gemini, Azure Speech and Resend (sign-in codes), and later also serves the web app. |
+| `server/` | The server, built with Next.js and deployed to Vercel. It holds every secret, talks to MongoDB, Gemini and Azure Speech, and later also serves the web app. It runs at https://english-coach-azure-alpha.vercel.app. |
 
 ## Build phases
 
-1. **Foundations (done):** server, database, sign-in with an emailed code, the app's five tabs, and the voice check that proves recording and scoring work on both phones.
+1. **Foundations (done):** server, database, sign-in, the app's five tabs, and the voice check that proves recording and scoring work on both phones.
 2. **Placement test and results (done):** a 30-minute adaptive test in six parts with a CEFR level for each skill, exam equivalents, and every mistake explained.
 3. **Plan, Today and review cards (done):** a 12-week plan from your results, today's tasks on the Today screen, and FSRS review cards made from your mistakes.
 4. **Daily lessons (done):** Gemini writes a lesson for each task in your plan, for all six skills, saved once and checked before use.
@@ -35,7 +35,7 @@ cd server
 npm run dev -- --port 3100
 ```
 
-Open http://localhost:3100/api/health to check it. Without Resend, sign-in codes are printed in this terminal and filled in on the phone for you.
+Open http://localhost:3100/api/health to check it.
 
 **3. Start the phone app** in a third terminal, then scan the QR code with the Camera app (iPhone) or Expo Go (Android).
 
@@ -45,7 +45,7 @@ npm install
 npx expo start
 ```
 
-The app finds the server on your computer by itself. If your computer's firewall asks, allow Node.js on private networks.
+The app finds the server on your computer by itself, unless `mobile/.env.local` points it at Vercel (see below). Delete that file to work against your computer again. If your computer's firewall asks, allow Node.js on private networks.
 
 **Android emulator.** Start an emulator from Android Studio (for example Pixel 10 Pro), then forward the two ports so the emulator reaches your computer without going through the firewall, and open the app:
 
@@ -129,17 +129,37 @@ node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 
 The free tier gives 5 audio hours a month. It stops at the limit and never charges.
 
-**Resend.** Create an API key and set `RESEND_API_KEY`. It sends the sign-in codes. Until you verify a domain, Resend only delivers to the address you signed up with. That is enough while you are the only user.
-
 **Gemini.** Create a free key at https://aistudio.google.com/apikey and set `GEMINI_API_KEY`. It grades the writing and speaking parts. `GEMINI_MODEL` and `GEMINI_FALLBACK_MODEL` default to the newest Flash and Flash-Lite models, and the lighter one is used when the free quota runs out.
+
+## Accounts and passwords
+
+Learners create an account with their email and a password of at least 8 characters. No email is ever sent.
+
+- Passwords are stored only as scrypt hashes with a random salt.
+- After 10 wrong passwords in a row, the account is locked for 15 minutes.
+- A wrong password and an unknown email get the same message, so nobody can find out who has an account.
+- Learners change their password under Progress, then Account, then Change password.
+
+**Forgotten passwords.** There is no email reset, so you give the learner a new temporary password yourself. In the `server` folder, put the production `MONGODB_URI` in `.env.production.local` (git ignores it), then run:
+
+```bash
+node scripts/reset-password.mjs learner@example.com --env .env.production.local
+```
+
+It prints the new password once. Send it to the learner privately, and they change it in the app.
+
+The emailed-code sign-in (`/api/auth/request-code`) is still there for local development. It works in production only if `RESEND_API_KEY` is set.
 
 ## Deploy the server to Vercel
 
-1. Push this repository to GitHub.
-2. In Vercel, create a new project from it and set **Root Directory** to `server`.
-3. Add every setting from `server/.env.example` under Environment Variables.
-4. Deploy, then open `https://YOUR-PROJECT.vercel.app/api/health`. Every service you configured should show `true`, and `db` should show `up`.
-5. Create `mobile/.env` with `EXPO_PUBLIC_API_URL=https://YOUR-PROJECT.vercel.app` and restart `npx expo start`.
+The server is deployed from GitHub: every push to `main` deploys by itself.
+
+1. In Vercel, import the GitHub repository and set **Root Directory** to `server`.
+2. Under Environment Variables, add `MONGODB_URI`, `MONGODB_DB`, `AUTH_SECRET`, `GEMINI_API_KEY`, `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION`. Paste a whole `.env` file into the Key field to add them all at once. Use a new `AUTH_SECRET` for production.
+3. Deploy, then open `/api/health`. `db` should show `up` and `speech`, `ai` and `auth` should show `true`.
+4. Create `mobile/.env.local` with `EXPO_PUBLIC_API_URL=https://english-coach-azure-alpha.vercel.app` and restart with `npx expo start --clear`.
+
+`server/vercel.json` runs the functions in Mumbai (`bom1`), the closest Vercel region to the Atlas cluster in Abu Dhabi and Azure Speech in UAE North. The free Hobby plan allows one region and up to 300 seconds per request; writing a lesson takes up to 120.
 
 ## Checks
 
