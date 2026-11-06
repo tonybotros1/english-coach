@@ -98,7 +98,8 @@ export async function gradeLessonWriting(task: string, text: string, level: numb
     user: `The learner is working at about ${LEVEL_NAMES[level]}.\nTask: ${task}\n\n<learner>\n${text}\n</learner>`,
     responseSchema: writingSchema,
     parse: lessonWritingShape,
-    timeoutMs: 55_000,
+    timeoutMs: 30_000,
+    budgetMs: 50_000,
   });
   const base = parseLevelName(g.level) ?? level;
   const corrections = g.corrections.filter((c) => c.original.trim() && text.includes(c.original.trim()) && c.original.trim() !== c.corrected.trim()).slice(0, 6);

@@ -321,6 +321,31 @@ describe('AI writing grading', () => {
     expect(sent.generationConfig.responseMimeType).toBe('application/json');
   });
 
+  it('retries a busy model once, then moves along the chain of models', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+    process.env.GEMINI_RETRY_MS = '0';
+    const reply = { level: 'B1', plus: false, summary: 's', criteria: { content: 3, organisation: 3, range: 3, accuracy: 3 }, strengths: [], improvements: [], corrections: [] };
+    const busy = () => new Response('{"error":{"code":503}}', { status: 503 });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(busy())
+      .mockResolvedValueOnce(busy())
+      .mockResolvedValueOnce(busy())
+      .mockResolvedValueOnce(busy())
+      .mockResolvedValueOnce(Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify(reply) }] } }] }));
+    vi.stubGlobal('fetch', fetchMock);
+    const g = await gradeWriting('Task', 'I like my job very much and I work every day.', 3);
+    expect(g.result.label).toBe('B1');
+    expect(fetchMock.mock.calls.map((c) => String(c[0]).split('/models/')[1].split(':')[0])).toEqual([
+      'gemini-flash-latest',
+      'gemini-flash-latest',
+      'gemini-3.5-flash',
+      'gemini-3.5-flash',
+      'gemini-flash-lite-latest',
+    ]);
+    delete process.env.GEMINI_RETRY_MS;
+  });
+
   it('falls back to the lighter model when the main one is out of free quota', async () => {
     process.env.GEMINI_API_KEY = 'test-key';
     const reply = { level: 'A2', plus: false, summary: 's', criteria: { content: 2, organisation: 2, range: 2, accuracy: 2 }, strengths: [], improvements: [], corrections: [] };
@@ -331,6 +356,6 @@ describe('AI writing grading', () => {
     vi.stubGlobal('fetch', fetchMock);
     const g = await gradeWriting('Task', 'I like my job very much and I work every day.', 2);
     expect(g.result.label).toBe('A2');
-    expect(String(fetchMock.mock.calls[1][0])).toContain('flash-lite');
+    expect(String(fetchMock.mock.calls[1][0])).toContain('gemini-3.5-flash');
   });
 });

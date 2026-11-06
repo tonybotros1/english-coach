@@ -24,6 +24,7 @@ const RULES = `Rules for every lesson:
 - Content is respectful and suitable for adults at work: no alcohol, romance, religion, politics, violence or stereotypes. Names and places may be international or from the Gulf.
 - Every multiple-choice question has four options. Put the CORRECT option FIRST; the app shuffles them. Exactly one option is correct; the others are plausible learner errors that are clearly wrong in context. Options are similar in length, so the answer cannot be guessed from its length or wording.
 - Explanations are one or two short sentences a learner at this level can understand, saying why the answer is right.
+- Before replying, proofread every sentence, example and phrase the learner will read or copy: articles (a/an), subject-verb agreement, tenses and spelling. Learners copy what you write, so it must be correct.
 - Reply with JSON only, matching the schema.`;
 
 function instructions(r: LessonRequest): string {
@@ -101,7 +102,7 @@ export async function generateLesson(r: LessonRequest, rng: () => number = Math.
   const system = `You are an expert English teacher and materials writer for Cambridge English, writing short self-study lessons.\n${RULES}`;
   let user = instructions(r);
   for (let attempt = 0; attempt < 2; attempt++) {
-    const out = await generateJson({ system, user, responseSchema: GEMINI_SCHEMAS[r.kind], parse: rawShapes[r.kind] as never, timeoutMs: 55_000 });
+    const out = await generateJson({ system, user, responseSchema: GEMINI_SCHEMAS[r.kind], parse: rawShapes[r.kind] as never, timeoutMs: 30_000, budgetMs: 80_000 });
     const problems = checkLesson(r.kind, out, r.level);
     if (!problems.length) {
       const c = out as Record<string, unknown>;

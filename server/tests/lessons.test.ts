@@ -44,6 +44,18 @@ describe('lesson checks', () => {
     const badVocab = { ...VOCABULARY, practice: [{ ...VOCABULARY.practice[0], options: ['banana', 'agenda', 'deadline', 'minutes'] }, ...VOCABULARY.practice.slice(1)] };
     expect(checkLesson('vocabulary', badVocab, 3).join()).toMatch(/one of the lesson's words/);
   });
+
+  it('catches "a" and "an" before the wrong sound, but allows a user, an hour, and wrong forms in options', () => {
+    const slip = { ...WRITING, usefulLanguage: ['I am a assistant manager.', ...WRITING.usefulLanguage.slice(1)] };
+    expect(checkLesson('writing', slip, 1).join()).toMatch(/"a assistant" should be "an assistant"/);
+    const an = { ...SPEAKING, shadowing: ['She works in an big office.', ...SPEAKING.shadowing.slice(1)] };
+    expect(checkLesson('speaking', an, 1).join()).toMatch(/"an big" should be "a big"/);
+    const fine = { ...WRITING, usefulLanguage: ['I am a user of the app.', 'It takes an hour.', 'She is a European citizen.', 'It was an honest mistake.'] };
+    expect(checkLesson('writing', fine, 1)).toEqual([]);
+    // A wrong article as a distractor is intended and must not be flagged.
+    const distractor = { ...GRAMMAR, practice: [{ prompt: 'I eat ___ apple every day.', options: ['an', 'a', 'the', 'some'] as [string, string, string, string], explanation: "We say 'an' before a vowel sound, not 'a apple'." }, ...GRAMMAR.practice.slice(1)] };
+    expect(checkLesson('grammar', distractor, 1)).toEqual([]);
+  });
 });
 
 describe('dictation scoring', () => {

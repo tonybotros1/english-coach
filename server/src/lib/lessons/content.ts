@@ -84,9 +84,50 @@ function checkMcqs(list: { prompt: string; options: string[] }[], label: string,
   return problems;
 }
 
+// "a" before a vowel sound or "an" before a consonant sound, a slip AI writers make ("a assistant").
+// Words that start with a vowel letter but a consonant sound (a user, a one-day) and the reverse (an hour) are allowed.
+const A_BEFORE_VOWEL = /\ba\s+(?!uni|use|usu|uti|ura|eu|one\b|once|ewe|u-|ufo)([aeiou]\w*)/gi;
+// Case-sensitive on purpose, so acronyms ("an MBA", "an HR team") are recognised and allowed.
+const AN_BEFORE_CONSONANT = /\b[Aa]n\s+(?![Hh]our|[Hh]onest|[Hh]onou?r|[Hh]eir|[A-Z]{2,}\b)([b-df-hj-np-tv-zB-DF-HJ-NP-TV-Z][a-z]*)/g;
+
+function articleProblems(texts: string[]): string[] {
+  const found = new Set<string>();
+  for (const t of texts) {
+    for (const m of t.matchAll(A_BEFORE_VOWEL)) found.add(`"a ${m[1]}" should be "an ${m[1]}"`);
+    for (const m of t.matchAll(AN_BEFORE_CONSONANT)) found.add(`"an ${m[1]}" should be "a ${m[1]}"`);
+  }
+  return [...found].map((f) => `Article error: ${f}. Check every sentence for grammar.`);
+}
+
+/** Everything a learner reads, hears or copies, except answer options and explanations, which may show wrong forms on purpose. */
+function learnerText(kind: LessonKind, c: unknown): string[] {
+  const x = c as Record<string, unknown>;
+  const strings = (v: unknown): string[] => (typeof v === 'string' ? [v] : Array.isArray(v) ? v.flatMap(strings) : []);
+  switch (kind) {
+    case 'grammar': {
+      const g = c as RawContent<'grammar'>;
+      return [...g.explanation, ...g.examples.map((e) => e.sentence), ...g.practice.map((p) => p.prompt)];
+    }
+    case 'vocabulary': {
+      const v = c as RawContent<'vocabulary'>;
+      return [...v.words.flatMap((w) => [w.meaning, w.example, w.collocation]), ...v.practice.map((p) => p.prompt)];
+    }
+    case 'reading': {
+      const r = c as RawContent<'reading'>;
+      return [r.text, ...r.glossary.map((g) => g.meaning), ...r.questions.map((q) => q.prompt)];
+    }
+    case 'listening': {
+      const l = c as RawContent<'listening'>;
+      return [l.setting, ...l.lines.map((s) => s.text), ...l.dictation, ...l.questions.map((q) => q.prompt)];
+    }
+    default:
+      return Object.values(x).flatMap(strings);
+  }
+}
+
 /** Problems that make a generated lesson unusable. An empty list means it can be saved. */
 export function checkLesson(kind: LessonKind, c: unknown, level: number): string[] {
-  const problems: string[] = [];
+  const problems: string[] = [...articleProblems(learnerText(kind, c))];
   if (kind === 'grammar') {
     const g = c as RawContent<'grammar'>;
     problems.push(...checkMcqs(g.practice, 'Practice question', true));
