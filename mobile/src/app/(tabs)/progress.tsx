@@ -310,7 +310,8 @@ export default function ProgressScreen() {
       <Reminders />
 
       <Section title="Account">
-        <ListRow icon="person-circle-outline" title={user?.email ?? ''} detail="Signed in with an emailed code" />
+        <ListRow icon="person-circle-outline" title={user?.name || user?.email || ''} detail={user?.name ? user.email : undefined} />
+        <ListRow icon="key-outline" title="Change password" onPress={() => router.push('/change-password')} />
         <ListRow icon="log-out-outline" title="Sign out" tone="danger" onPress={() => setConfirm(true)} last />
       </Section>
 

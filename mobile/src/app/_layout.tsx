@@ -58,6 +58,7 @@ function RootNavigator() {
         <Stack.Screen name="review" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="lesson/[taskId]" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="weekly/[taskId]" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="change-password" options={{ ...header, title: 'Change password', presentation: 'modal' }} />
       </Stack.Protected>
       <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="sign-in" />

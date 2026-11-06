@@ -36,7 +36,14 @@ export async function api<T>(path: string, { method = 'GET', body, form, token, 
   return data as T;
 }
 
+export const PASSWORD_MIN = 8;
+
 export const authApi = {
+  signUp: (email: string, password: string, name: string) =>
+    api<{ token: string; user: User }>('/api/auth/sign-up', { method: 'POST', body: { email, password, name: name.trim() || undefined } }),
+  signIn: (email: string, password: string) => api<{ token: string; user: User }>('/api/auth/sign-in', { method: 'POST', body: { email, password } }),
+  changePassword: (token: string, current: string, next: string) =>
+    api<{ ok: true }>('/api/auth/password', { method: 'POST', body: { current, next }, token }),
   requestCode: (email: string) => api<{ ok: true; email: string; devCode?: string }>('/api/auth/request-code', { method: 'POST', body: { email } }),
   verify: (email: string, code: string) => api<{ token: string; user: User }>('/api/auth/verify', { method: 'POST', body: { email, code } }),
   me: (token: string) => api<{ user: User }>('/api/me', { token }),
