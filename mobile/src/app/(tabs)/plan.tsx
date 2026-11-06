@@ -164,17 +164,17 @@ export default function PlanScreen() {
             {d.tasks.length ? (
               d.tasks.map((t, i) => {
                 const lesson = LESSON_KINDS.includes(t.kind);
-                // Lessons open on their day (or the day before); past ones can be caught up.
-                const open = lesson && d.date <= addDays(p.today.date, 1);
-                return (
-                  <TaskRow
-                    key={t.id}
-                    task={t}
-                    last={i === d.tasks.length - 1}
-                    done={p.done.includes(t.id)}
-                    onPress={open ? () => router.push({ pathname: '/lesson/[taskId]', params: { taskId: t.id } }) : undefined}
-                  />
-                );
+                const done = p.done.includes(t.id);
+                // Lessons and weekly reviews open on their day (or the day before); checkpoints on their day. Past ones can be caught up.
+                const onPress =
+                  lesson && d.date <= addDays(p.today.date, 1)
+                    ? () => router.push({ pathname: '/lesson/[taskId]', params: { taskId: t.id } })
+                    : t.kind === 'weekly' && d.date <= addDays(p.today.date, 1)
+                      ? () => router.push({ pathname: '/weekly/[taskId]', params: { taskId: t.id } })
+                      : t.kind === 'checkpoint' && !done && d.date <= p.today.date
+                        ? () => router.push({ pathname: '/placement/test', params: { checkpoint: t.id } })
+                        : undefined;
+                return <TaskRow key={t.id} task={t} last={i === d.tasks.length - 1} done={done} onPress={onPress} />;
               })
             ) : (
               <View style={styles.rest}>

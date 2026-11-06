@@ -18,7 +18,7 @@ import { storage } from '@/lib/storage';
 export default function PlacementTestScreen() {
   const theme = useTheme();
   const { token } = useSession();
-  const { restart } = useLocalSearchParams<{ restart?: string }>();
+  const { restart, checkpoint } = useLocalSearchParams<{ restart?: string; checkpoint?: string }>();
   const [step, setStep] = useState<Step | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,13 +32,13 @@ export default function PlacementTestScreen() {
       if (!token) return;
       setLoadError(null);
       try {
-        const r = await placementApi.start(token, fresh);
+        const r = await placementApi.start(token, fresh, checkpoint);
         setStep(r.step);
       } catch (e) {
         setLoadError(e instanceof ApiError ? e.message : 'The test could not be loaded. Try again.');
       }
     },
-    [token],
+    [token, checkpoint],
   );
 
   useEffect(() => {

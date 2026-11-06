@@ -136,7 +136,9 @@ export default function TodayScreen() {
           footer={
             plan.dayType === 'rest'
               ? undefined
-              : 'Start with your review cards, then do the lessons in any order. Weekly reviews and checkpoints arrive in the next update.'
+              : plan.dayType === 'checkpoint'
+                ? 'The checkpoint takes about 15 minutes and updates the rest of your plan.'
+                : 'Start with your review cards, then do the lessons in any order.'
           }>
           {plan.dayType === 'rest' || plan.tasks.length === 0 ? (
             <View style={styles.rest}>
@@ -155,8 +157,18 @@ export default function TodayScreen() {
                   task={t}
                   last={i === plan.tasks.length - 1}
                   done={done}
-                  note={lesson || t.kind === 'review' ? (done ? 'Done' : undefined) : 'Next update'}
-                  onPress={lesson ? () => router.push({ pathname: '/lesson/[taskId]', params: { taskId: t.id } }) : t.kind === 'review' && toReview ? () => router.push('/review') : undefined}
+                  note={done ? 'Done' : undefined}
+                  onPress={
+                    lesson
+                      ? () => router.push({ pathname: '/lesson/[taskId]', params: { taskId: t.id } })
+                      : t.kind === 'weekly'
+                        ? () => router.push({ pathname: '/weekly/[taskId]', params: { taskId: t.id } })
+                        : t.kind === 'checkpoint' && !done
+                          ? () => router.push({ pathname: '/placement/test', params: { checkpoint: t.id } })
+                          : t.kind === 'review' && toReview
+                            ? () => router.push('/review')
+                            : undefined
+                  }
                 />
               );
             })

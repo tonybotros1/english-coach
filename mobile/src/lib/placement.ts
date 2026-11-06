@@ -35,6 +35,7 @@ export type Mistake = {
 
 export type Results = {
   testId: string;
+  kind: 'placement' | 'checkpoint';
   completedAt: string;
   overall: { score: number; label: string };
   skills: Record<Section, SkillResult>;
@@ -98,7 +99,8 @@ export const SECTION_INFO: Record<Section, { name: string; icon: 'text-outline' 
 
 export const placementApi = {
   status: (token: string) => api<{ active: Step | null; latest: Summary | null }>('/api/placement', { token }),
-  start: (token: string, restart = false) => api<{ step: Step }>('/api/placement/start', { method: 'POST', body: { restart }, token }),
+  start: (token: string, restart = false, checkpointTaskId?: string) =>
+    api<{ step: Step }>('/api/placement/start', { method: 'POST', body: { restart, ...(checkpointTaskId ? { checkpointTaskId } : {}) }, token }),
   answer: (token: string, testId: string, itemId: string, choice: number) =>
     api<{ step: Step }>('/api/placement/answer', { method: 'POST', body: { testId, itemId, choice }, token }),
   writing: (token: string, testId: string, text: string) => api<{ step: Step }>('/api/placement/writing', { method: 'POST', body: { testId, text }, token }),

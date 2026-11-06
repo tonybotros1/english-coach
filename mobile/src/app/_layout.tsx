@@ -1,20 +1,38 @@
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import * as Notifications from 'expo-notifications';
+import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { useColorScheme } from 'react-native';
+import { AppState, useColorScheme } from 'react-native';
 
 import { Colors } from '@/constants/theme';
+import { syncReminders } from '@/lib/reminders';
 import { SessionProvider, useSession } from '@/lib/session';
 
 SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
-  const { status } = useSession();
+  const { status, token } = useSession();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
 
   useEffect(() => {
     if (status !== 'loading') SplashScreen.hideAsync();
   }, [status]);
+
+  // Keep the next 7 morning reminders up to date: when signed in, and each time the app comes back to the front.
+  useEffect(() => {
+    if (status !== 'signedIn' || !token) return;
+    syncReminders(token).catch(() => {});
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') syncReminders(token).catch(() => {});
+    });
+    return () => sub.remove();
+  }, [status, token]);
+
+  // Tapping a morning reminder opens Today.
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener(() => router.navigate('/'));
+    return () => sub.remove();
+  }, []);
 
   if (status === 'loading') return null;
   const signedIn = status === 'signedIn';
@@ -39,6 +57,7 @@ function RootNavigator() {
         <Stack.Screen name="plan-setup" options={{ ...header, title: '', presentation: 'modal' }} />
         <Stack.Screen name="review" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="lesson/[taskId]" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="weekly/[taskId]" options={{ animation: 'slide_from_bottom' }} />
       </Stack.Protected>
       <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="sign-in" />

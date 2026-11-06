@@ -1,11 +1,11 @@
 # Tony's English Coach
 
-An English learning app: an adaptive placement test that gives your CEFR level (A1 to C2), a personal 12-week plan that targets your weakest skills, daily lessons and review cards, pronunciation scoring, and a morning email with the day's tasks.
+An English learning app: an adaptive placement test that gives your CEFR level (A1 to C2), a personal 12-week plan that targets your weakest skills, daily lessons and review cards, pronunciation scoring, checkpoint tests, a progress screen, and a morning reminder on the phone with the day's tasks.
 
 | Folder | What it is |
 | --- | --- |
 | `mobile/` | The phone app, built with Expo (React Native) for iPhone and Android. |
-| `server/` | The server, built with Next.js and deployed to Vercel. It holds every secret, talks to MongoDB, Gemini, Azure Speech and Resend, and later also serves the web app. |
+| `server/` | The server, built with Next.js and deployed to Vercel. It holds every secret, talks to MongoDB, Gemini, Azure Speech and Resend (sign-in codes), and later also serves the web app. |
 
 ## Build phases
 
@@ -13,7 +13,7 @@ An English learning app: an adaptive placement test that gives your CEFR level (
 2. **Placement test and results (done):** a 30-minute adaptive test in six parts with a CEFR level for each skill, exam equivalents, and every mistake explained.
 3. **Plan, Today and review cards (done):** a 12-week plan from your results, today's tasks on the Today screen, and FSRS review cards made from your mistakes.
 4. **Daily lessons (done):** Gemini writes a lesson for each task in your plan, for all six skills, saved once and checked before use.
-5. Morning email, progress screen and checkpoint tests.
+5. **Reminders, progress and checkpoints (done):** a morning reminder scheduled on the phone, the progress screen, weekly reviews and checkpoint tests that update the plan.
 6. Web app on the same server.
 
 ## Run it on your computer
@@ -91,6 +91,17 @@ Mistakes, new words, dictation errors and weak pronunciation all become review c
 
 Lessons need `GEMINI_API_KEY`. Speaking also needs `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION`. Without them, the app explains which setting is missing.
 
+## Reminders, progress and checkpoints
+
+- **Morning reminder:** the phone schedules the next 7 mornings itself, with each day's plan in the text (for example "Today: 30 minutes of English · 11 review cards, then Grammar"). No push server is needed, it works with the app closed, and it is rescheduled each time the app opens. Turn it on or off and pick 6, 7, 8 or 9 o'clock on the Progress tab. Android may deliver it up to an hour after the chosen time to save battery.
+- **Weekly review:** the last study day of each week. First the review cards, then a 10-question quiz from that week's lessons, mixing questions you missed with ones you got right. Missed questions become review cards.
+- **Checkpoint tests:** weeks 4, 8 and 12 end with a 15-minute test: the four multiple-choice parts start at your current level, and there is one speaking question. The results update your levels, and the rest of the plan is rebuilt from them. Weeks already done stay as they were.
+- **Progress screen:** days in a row, minutes per week against the plan's target, each skill's level from the placement test to the latest test, review card counts (learned, still learning, new), recall over the last 30 days, and lessons done.
+
+Minutes come from finished lessons, reviews and tests. Review time counts the gaps between cards, capped at 90 seconds each, so leaving the app open does not inflate it.
+
+Notifications need a development build to be fully tested. Expo Go on Android can't create the app's own notification channel, so reminders there use the default channel, and tapping one doesn't open the app.
+
 ## Design
 
 Clean and neutral: grey is the main colour (backgrounds, cards, secondary buttons) and black is the accent (text, primary buttons, selection). Dark mode inverts it. All colours, spacing and radii live in `mobile/src/constants/theme.ts`, and the shared building blocks (screen, card, button, list row, notice, pill) are in `mobile/src/components/ui.tsx`.
@@ -118,7 +129,7 @@ node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 
 The free tier gives 5 audio hours a month. It stops at the limit and never charges.
 
-**Resend.** Create an API key and set `RESEND_API_KEY`. Until you verify a domain, Resend only delivers to the address you signed up with. That is enough while you are the only user.
+**Resend.** Create an API key and set `RESEND_API_KEY`. It sends the sign-in codes. Until you verify a domain, Resend only delivers to the address you signed up with. That is enough while you are the only user.
 
 **Gemini.** Create a free key at https://aistudio.google.com/apikey and set `GEMINI_API_KEY`. It grades the writing and speaking parts. `GEMINI_MODEL` and `GEMINI_FALLBACK_MODEL` default to the newest Flash and Flash-Lite models, and the lighter one is used when the free quota runs out.
 

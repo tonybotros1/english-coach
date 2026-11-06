@@ -54,7 +54,9 @@ export default function ResultsScreen() {
           ))}
         </View>
         <ThemedText type="small" themeColor="textSecondary">
-          Your personal 12-week plan arrives in the next update and will be built from these results.
+          {r.kind === 'checkpoint'
+            ? 'Your plan has been updated for the coming weeks, with more time for these skills.'
+            : 'Build your 12-week plan from these results on the Plan tab.'}
         </ThemedText>
       </Card>
 
@@ -102,7 +104,7 @@ function OverallCard({ results }: { results: Results }) {
   const pos = Math.min(1, Math.max(0, results.overall.score / 6));
   return (
     <View style={{ gap: Spacing.three, paddingTop: Spacing.three }}>
-      <ThemedText type="eyebrow">Your English level</ThemedText>
+      <ThemedText type="eyebrow">{results.kind === 'checkpoint' ? 'Checkpoint result' : 'Your English level'}</ThemedText>
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.three }}>
         <ThemedText style={styles.big} accessibilityRole="header">
           {results.overall.label}

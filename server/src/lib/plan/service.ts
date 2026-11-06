@@ -6,13 +6,15 @@ import type { UserDoc } from '../auth';
 import { cardCounts, importPlacementCards } from '../cards';
 import { addDays, daysBetween, localDate } from '../dates';
 import { HttpError } from '../errors';
-import { doneTaskIds } from '../lessons/service';
+import { doneTaskIds, markTaskDone } from '../tasks';
 import { currentStep, latestSummary, type PlacementSummary } from '../placement/service';
 import { GOALS, SKILLS, type Goal } from './content';
 import { MINUTE_CHOICES, PLAN_WEEKS, buildPlan, estimate, newCardsPerDay, strandMinutes, type Levels, type Plan, type Settings } from './engine';
 
 export type PlanDoc = {
   userId: ObjectId;
+  /** Checkpoint results that reshaped the plan, oldest first. */
+  checkpoints?: { testId: string; at: Date; overall: number }[];
   status: 'active' | 'archived';
   createdAt: Date;
   settings: Settings;
@@ -121,4 +123,25 @@ export async function todaySummary(db: Db, user: WithId<UserDoc>, now = new Date
       : null,
     cards,
   };
+}
+
+/**
+ * After a checkpoint: tick off its task and rebuild the weeks after it from the new levels, keeping the
+ * weeks already lived. A checkpoint at the end of the plan only records the result.
+ */
+export async function applyCheckpoint(db: Db, userId: ObjectId, summary: PlacementSummary, taskId: string | null, now = new Date()) {
+  const doc = await activePlan(db, userId);
+  if (!doc) return;
+  const user = await db.collection<UserDoc>('users').findOne({ _id: userId });
+  const today = localDate(user?.timezone, now);
+  let weekIndex = taskId ? doc.plan.weeks.findIndex((w) => w.days.some((d) => d.tasks.some((t) => t.id === taskId))) : -1;
+  if (weekIndex < 0) weekIndex = locate(doc, today).weekIndex;
+  const levels = levelsFrom(summary);
+  const fresh = buildPlan(doc.settings, levels, doc.plan.startDate);
+  const plan: Plan = { ...fresh, weeks: [...doc.plan.weeks.slice(0, weekIndex + 1), ...fresh.weeks.slice(weekIndex + 1)] };
+  await plans(db).updateOne(
+    { _id: doc._id },
+    { $set: { levels, overall: summary.overall.score, plan }, $push: { checkpoints: { testId: summary.testId, at: now, overall: summary.overall.score } } },
+  );
+  if (taskId) await markTaskDone(db, userId, doc.createdAt, taskId, now);
 }

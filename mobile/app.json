@@ -44,7 +44,13 @@
         }
       ],
       "expo-secure-store",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-notifications",
+        {
+          "color": "#0A0A0B"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

@@ -32,6 +32,8 @@ export type LessonResult = {
   speaking: { transcript: string; seconds: number; scores: Assessment['scores'] | null; feedback: SpeakingFeedback | null; label: string | null } | null;
   cardsAdded: number;
   seconds: number;
+  /** The option chosen for each question, so the weekly review can bring back the ones missed. */
+  answers?: number[];
 };
 
 export type LessonDoc = {
@@ -151,7 +153,7 @@ async function ownLesson(db: Db, user: WithId<UserDoc>, lessonId: unknown) {
   return l as WithId<LessonDoc> & { content: LessonContent };
 }
 
-const mcqCard = (lessonId: string, skill: string, i: number, q: Mcq, chosen: number, extra: Partial<NewCard['front']> = {}, transcript: string | null = null): NewCard => ({
+export const mcqCard = (lessonId: string, skill: string, i: number, q: Mcq, chosen: number, extra: Partial<NewCard['front']> = {}, transcript: string | null = null): NewCard => ({
   key: `lesson:${lessonId}:${i}`,
   skill,
   lessonId,
@@ -242,7 +244,7 @@ export async function completeLesson(
     }
 
   const cardsAdded = await addLessonCards(db, user._id, cards, now);
-  return finish(db, l, { correct, total: questions.length, dictation, writing: null, speaking: null, cardsAdded, seconds: Math.max(0, Math.round(input.seconds)) }, now);
+  return finish(db, l, { correct, total: questions.length, dictation, writing: null, speaking: null, cardsAdded, seconds: Math.max(0, Math.round(input.seconds)), answers: input.answers }, now);
 }
 
 export async function submitLessonWriting(db: Db, user: WithId<UserDoc>, input: { lessonId: unknown; text: string; seconds: number }, now = new Date()) {
@@ -331,8 +333,4 @@ export async function submitTalk(db: Db, user: WithId<UserDoc>, input: { lessonI
   );
 }
 
-/** Task ids of the plan's finished lessons, for ticking them off on Today and in the Plan tab. */
-export async function doneTaskIds(db: Db, userId: ObjectId, planCreatedAt: Date): Promise<string[]> {
-  const list = await lessons(db).find({ userId, planCreatedAt, status: 'completed' }, { projection: { taskId: 1 } }).toArray();
-  return list.map((l) => l.taskId);
-}
+export { doneTaskIds } from '../tasks';

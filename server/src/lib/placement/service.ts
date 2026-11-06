@@ -10,6 +10,7 @@ import { assessSpontaneous, isSpeechConfigured, type Assessment } from '../azure
 import { HttpError } from '../errors';
 import { isGeminiConfigured } from '../gemini';
 import { getItem, type McqSection } from './bank';
+import type { Level } from './bank/types';
 import {
   SPEAKING_INTRO,
   SPEAKING_LEVELLED,
@@ -75,6 +76,12 @@ export type TestDoc = {
   speaking: { tasks: SpeakingTask[]; result: SkillResult | null; feedback: SpeakingFeedback | null } | null;
   aiNotes: string[];
   results: Results | null;
+  /** 'checkpoint' tests start each part at the learner's level and ask one speaking question. */
+  kind?: 'placement' | 'checkpoint';
+  startLevels?: Partial<Record<McqSection, Level>>;
+  speakingTasks?: number;
+  /** The plan task this checkpoint belongs to, ticked off when it finishes. */
+  taskId?: string | null;
 };
 
 export type PlacementSummary = { testId: string; completedAt: Date; overall: { score: number; label: string }; skills: Record<Section, SkillResult> };
@@ -102,6 +109,7 @@ const preferUnseen = <T extends { id: string }>(list: readonly T[], seen: Set<st
   return shuffle(fresh.length ? fresh : list, rng)[0];
 };
 
+const speakingCount = (t: TestDoc) => t.speakingTasks ?? SPEAKING_TASKS;
 const mcqScores = (t: TestDoc) => MCQ_SECTIONS.map((s) => t.stairs[s]?.result?.score).filter((n): n is number => typeof n === 'number');
 
 /** Sets up the section the test has just moved into. */
@@ -109,14 +117,16 @@ function enterSection(t: TestDoc, seen: Set<string>, rng: Rng) {
   const section = SECTIONS[t.sectionIndex];
   if (!section) return;
   if (isMcq(section)) {
-    if (!t.stairs[section]) t.stairs[section] = newStair(section, usedIds(Object.values(t.stairs)), seen, rng);
+    if (!t.stairs[section]) t.stairs[section] = newStair(section, usedIds(Object.values(t.stairs)), seen, rng, t.startLevels?.[section]);
   } else if (section === 'writing') {
     if (!t.writing) {
       const p = preferUnseen(WRITING_PROMPTS, seen, rng);
       t.writing = { promptId: p.id, prompt: p.text, text: null, result: null, feedback: null };
     }
   } else if (!t.speaking) {
-    const p = preferUnseen(SPEAKING_INTRO, seen, rng);
+    // A checkpoint has one speaking question, pitched at the level found so far; the placement test starts with an easy one.
+    const pool = speakingCount(t) === 1 ? SPEAKING_LEVELLED.filter((x) => x.band === speakingBand(estimateFrom([...mcqScores(t), ...(t.writing?.result ? [t.writing.result.score] : [])]).score)) : SPEAKING_INTRO;
+    const p = preferUnseen(pool, seen, rng);
     t.speaking = { tasks: [{ promptId: p.id, prompt: p.text, seconds: null, assessment: null, skipped: false }], result: null, feedback: null };
   }
 }
@@ -130,7 +140,7 @@ function progressOf(t: TestDoc): number {
       if (isMcq(s)) {
         const answered = (t.stairs[s]?.blocks ?? []).reduce((n, b) => n + b.answers.filter((a) => a !== null).length, 0);
         inner = Math.min(0.9, answered / (BLOCK[s].size * 2.5));
-      } else if (s === 'speaking') inner = (t.speaking?.tasks.filter((k) => k.seconds !== null).length ?? 0) / SPEAKING_TASKS;
+      } else if (s === 'speaking') inner = (t.speaking?.tasks.filter((k) => k.seconds !== null).length ?? 0) / speakingCount(t);
       done += SECTION_WEIGHT[s] * inner;
     }
   });
@@ -161,7 +171,7 @@ export function stepOf(t: WithId<TestDoc>): Step {
     kind: 'speaking',
     sectionStart: taskIndex === 0,
     taskIndex,
-    taskCount: SPEAKING_TASKS,
+    taskCount: speakingCount(t),
     prompt: { id: task.promptId, text: task.prompt },
     maxSeconds: SPEAKING_MAX_SECONDS,
   };
@@ -193,12 +203,28 @@ async function ownTest(db: Db, userId: ObjectId, testId: unknown, now: Date): Pr
   return t;
 }
 
-/** Resumes the unfinished test, or starts a new one. `restart` abandons the unfinished one first. */
-export async function startTest(db: Db, user: WithId<UserDoc>, opts: { restart?: boolean } = {}, rng: Rng = Math.random, now = new Date()): Promise<Step> {
+/**
+ * Resumes the unfinished test, or starts a new one. `restart` abandons the unfinished one first.
+ * `checkpointTaskId` starts a short checkpoint test from the learner's current levels instead.
+ */
+export async function startTest(
+  db: Db,
+  user: WithId<UserDoc>,
+  opts: { restart?: boolean; checkpointTaskId?: string } = {},
+  rng: Rng = Math.random,
+  now = new Date(),
+): Promise<Step> {
   const existing = await activeTest(db, user._id, now);
   if (existing && !opts.restart) return stepOf(existing);
   if (existing) await tests(db).updateOne({ _id: existing._id }, { $set: { status: 'abandoned', updatedAt: now } });
   const seen = await seenBy(db, user._id);
+  let checkpoint: Pick<TestDoc, 'kind' | 'startLevels' | 'speakingTasks' | 'taskId'> = { kind: 'placement' };
+  if (opts.checkpointTaskId) {
+    const latest = await latestSummary(db, user._id);
+    if (!latest) throw new HttpError(409, 'Take the placement test first.', 'no_placement');
+    const startLevels = Object.fromEntries(MCQ_SECTIONS.map((s) => [s, Math.max(1, Math.min(6, Math.floor(latest.skills[s].score + 1e-9))) as Level]));
+    checkpoint = { kind: 'checkpoint', startLevels, speakingTasks: 1, taskId: opts.checkpointTaskId };
+  }
   const doc: TestDoc = {
     userId: user._id,
     status: 'in_progress',
@@ -213,6 +239,7 @@ export async function startTest(db: Db, user: WithId<UserDoc>, opts: { restart?:
     speaking: null,
     aiNotes: [],
     results: null,
+    ...checkpoint,
   };
   enterSection(doc, seen, rng);
   const { insertedId } = await tests(db).insertOne(doc);
@@ -303,7 +330,7 @@ export async function submitSpeaking(db: Db, user: WithId<UserDoc>, input: Speak
   }
   sp.tasks[index] = { ...sp.tasks[index], seconds: input.skip ? 0 : input.seconds, assessment, skipped: input.skip };
 
-  if (index + 1 < SPEAKING_TASKS) {
+  if (index + 1 < speakingCount(t)) {
     const seen = await seenBy(db, user._id);
     const estimate = estimateFrom([...mcqScores(t), ...(t.writing?.result ? [t.writing.result.score] : [])]).score;
     const p = preferUnseen(SPEAKING_LEVELLED.filter((x) => x.band === speakingBand(estimate)), seen, rng);
@@ -375,6 +402,11 @@ async function recordCompletion(db: Db, userId: ObjectId, t: WithId<TestDoc>) {
   await users(db).updateOne({ _id: userId }, { $set: { placement: summary }, $addToSet: { placementSeen: { $each: seen } } });
   // Every mistake becomes a review card.
   await importPlacementCards(db, userId, t._id, t.completedAt ?? new Date());
+  // A checkpoint ticks off its plan task and rebuilds the rest of the plan from the new levels.
+  if (t.kind === 'checkpoint') {
+    const { applyCheckpoint } = await import('../plan/service');
+    await applyCheckpoint(db, userId, summary, t.taskId ?? null, t.completedAt ?? new Date());
+  }
 }
 
 export async function latestSummary(db: Db, userId: ObjectId): Promise<PlacementSummary | null> {
@@ -397,6 +429,7 @@ export async function resultsOf(db: Db, user: WithId<UserDoc>, testId: string) {
   if (!t?.results) throw new HttpError(404, 'Those results were not found.', 'not_found');
   return {
     testId,
+    kind: t.kind ?? 'placement',
     completedAt: t.completedAt,
     ...t.results,
     overall: { score: t.results.overall.score, label: levelLabel(t.results.overall.score) },

@@ -83,8 +83,9 @@ export function pickBlock(section: McqSection, level: Level, usedInTest: Set<str
   return { level, itemIds: chosen, orders: chosen.map(() => shuffle([0, 1, 2, 3], rng)), answers: chosen.map(() => null) };
 }
 
-export function newStair(section: McqSection, usedInTest: Set<string>, seenBefore: Set<string>, rng: Rng): Stair {
-  return { level: START_LEVEL, passed: [], failed: [], blocks: [pickBlock(section, START_LEVEL, usedInTest, seenBefore, rng)], result: null };
+/** Starts a section at B1, or at `start` (the learner's current level) for a checkpoint test. */
+export function newStair(section: McqSection, usedInTest: Set<string>, seenBefore: Set<string>, rng: Rng, start: Level = START_LEVEL): Stair {
+  return { level: start, passed: [], failed: [], blocks: [pickBlock(section, start, usedInTest, seenBefore, rng)], result: null };
 }
 
 export const correctCount = (b: Block) => b.answers.filter((a) => a === 0).length;
