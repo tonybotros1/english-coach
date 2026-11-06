@@ -53,6 +53,9 @@ describe('reading Azure pronunciation results', () => {
     expect(a.scores).toEqual({ pronunciation: 95.4, accuracy: 100, fluency: 95.5, completeness: 100, prosody: 88.2 });
     expect(a.words[1]).toEqual({ word: 'morning', accuracy: 52, errorType: 'Mispronunciation' });
     expect(a.recognized).toBe('Good morning.');
+    expect(normalizeAssessment({ RecognitionStatus: 'Success', DisplayText: 'I work in Dubai.Every day I start at 8.5 hours later I go home.' }).recognized).toBe(
+      'I work in Dubai. Every day I start at 8.5 hours later I go home.',
+    );
   });
 
   it('reads the nested shape from the how-to guide', () => {

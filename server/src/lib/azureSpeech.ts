@@ -78,7 +78,8 @@ export function normalizeAssessment(json: unknown): Assessment {
   const words = (Array.isArray(best?.Words) ? best.Words : []) as Raw[];
   return {
     status: status === '0' ? 'Success' : status,
-    recognized: String(j.DisplayText ?? best?.Display ?? ''),
+    // Azure joins sentences without a space ("Dubai.Every"); put the space back.
+    recognized: String(j.DisplayText ?? best?.Display ?? '').replace(/([.!?])(?=[A-Za-z])/g, '$1 '),
     scores: {
       pronunciation: pick(best, 'PronScore'),
       accuracy: pick(best, 'AccuracyScore'),
